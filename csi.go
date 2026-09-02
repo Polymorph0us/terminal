@@ -39,11 +39,10 @@ func (c *csiEscape) parse() {
 	}
 	s := string(c.buf)
 	c.args = c.args[:0]
-	if s[0] == '?' || s[0] == '=' {
+	switch s[0] {
+	case '?', '=', '>', '<':
 		c.prefix = s[0]
-		if s[0] == '?' {
-			c.priv = true
-		}
+		c.priv = s[0] == '?'
 		s = s[1:]
 	}
 	s = s[:len(s)-1]
