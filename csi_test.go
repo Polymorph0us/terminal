@@ -34,3 +34,53 @@ func TestCSIParse(t *testing.T) {
 		t.Fatal("CSI parse mismatch")
 	}
 }
+
+// Test that ESC[=u is not treated as ESC[u
+func TestCSIEqualsPrefix(t *testing.T) {
+	var st State
+	term, err := Create(&st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Put the cursor somewhere we can detect a restore.
+	st.moveTo(5, 5)
+	st.saveCursor()
+	st.moveTo(10, 10)
+
+	// ESC[=u must not be treated as ESC[u.
+	_, err = term.Write([]byte("\033[=u"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	x, y := st.Cursor()
+	if x != 10 || y != 10 {
+		t.Fatalf("ESC[=u moved cursor to (%d, %d), expected (10, 10)", x, y)
+	}
+}
+
+// Test the difference in behavior between ESC[u and ESC[=u
+func TestCSIRestoreCursor(t *testing.T) {
+	var st State
+	term, err := Create(&st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Save the cursor at (5, 5), then move it elsewhere.
+	st.moveTo(5, 5)
+	st.saveCursor()
+	st.moveTo(10, 10)
+
+	// ESC[u should restore the saved cursor position.
+	_, err = term.Write([]byte("\033[u"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	x, y := st.Cursor()
+	if x != 5 || y != 5 {
+		t.Fatalf("ESC[u moved cursor to (%d, %d), expected (5, 5)", x, y)
+	}
+}

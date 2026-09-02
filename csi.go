@@ -8,10 +8,11 @@ import (
 // CSI (Control Sequence Introducer)
 // ESC+[
 type csiEscape struct {
-	buf  []byte
-	args []int
-	mode byte
-	priv bool
+	buf    []byte
+	args   []int
+	mode   byte
+	priv   bool
+	prefix byte
 }
 
 func (c *csiEscape) reset() {
@@ -19,6 +20,7 @@ func (c *csiEscape) reset() {
 	c.args = c.args[:0]
 	c.mode = 0
 	c.priv = false
+	c.prefix = 0
 }
 
 func (c *csiEscape) put(b byte) bool {
@@ -37,8 +39,11 @@ func (c *csiEscape) parse() {
 	}
 	s := string(c.buf)
 	c.args = c.args[:0]
-	if s[0] == '?' {
-		c.priv = true
+	if s[0] == '?' || s[0] == '=' {
+		c.prefix = s[0]
+		if s[0] == '?' {
+			c.priv = true
+		}
 		s = s[1:]
 	}
 	s = s[:len(s)-1]
@@ -172,7 +177,9 @@ func (t *State) handleCSI() {
 	case 's': // DECSC - save cursor position (ANSI.SYS)
 		t.saveCursor()
 	case 'u': // DECRC - restore cursor position (ANSI.SYS)
-		t.restoreCursor()
+		if c.prefix == 0 {
+			t.restoreCursor()
+		}
 	}
 	return
 unknown: // TODO: get rid of this goto
